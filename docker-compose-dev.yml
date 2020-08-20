@@ -1,0 +1,40 @@
+version: '3'
+
+volumes:
+  mongo_data: {}
+
+
+services:
+  app: &app
+    build:
+      context: .
+      dockerfile: compose/backend/Dockerfile
+    env_file:
+      - .envs
+    command: python setup_mongo.py
+    volumes:
+    - ./app:/app
+    depends_on:
+      - mongo
+
+  backend:
+    <<: *app
+    command: gunicorn main:app -b 0.0.0.0:8080 -w 4 -k uvicorn.workers.UvicornWorker --reload
+
+  nginx:
+    build:
+      context: .
+      dockerfile: compose/nginx/Dockerfile
+    ports:
+      - 8080:8080
+    depends_on:
+      - backend
+
+  mongo:
+    image: library/mongo:latest
+    env_file:
+      - .envs
+    ports:
+      - 27017:27017
+    volumes:
+    - mongo_data:/data/db
